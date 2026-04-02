@@ -1,0 +1,5 @@
+{
+  "name": "OmniAgent: Your Personal Memory Companion",
+  "description": "An AI agent that learns your preferences, favorite places, and order history from your conversations, storing everything securely in Firebase.",
+  "requestFramePermissions": ["geolocation"]
+}

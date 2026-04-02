@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user information and preferences.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Memory": {
+      "title": "User Memory",
+      "description": "A learned fact about the user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["preference", "place", "order", "general"] },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "source": { "type": "string", "description": "The chat message ID or context it was learned from" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "content", "timestamp"]
+    },
+    "Message": {
+      "title": "Chat Message",
+      "description": "A message in the conversation.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "role", "text", "timestamp"]
+    },
+    "Agent": {
+      "title": "Agent User Data",
+      "description": "Redundant storage for user data as requested.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "onboardingCompleted": { "type": "boolean" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "lastUpdated"]
+    },
+    "Attachment": {
+      "title": "File Attachment",
+      "description": "A file uploaded by the user for the AI to analyze.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fileName": { "type": "string" },
+        "mimeType": { "type": "string" },
+        "data": { "type": "string", "description": "Base64 encoded file data" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "fileName", "mimeType", "data", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/memories/{memoryId}": {
+      "schema": "Memory",
+      "description": "Learned facts about the user"
+    },
+    "/users/{userId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat history"
+    },
+    "/Agent/{userId}": {
+      "schema": "Agent",
+      "description": "Redundant user data storage"
+    },
+    "/users/{userId}/attachments/{attachmentId}": {
+      "schema": "Attachment",
+      "description": "User uploaded files"
+    }
+  }
+}

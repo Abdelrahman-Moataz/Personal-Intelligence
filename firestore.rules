@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, email format)
+    //   - displayName: string (optional)
+    //   - photoURL: string (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: users/{userId}/memories
+    // Document ID: memoryId
+    // Fields:
+    //   - userId: string (required)
+    //   - type: string (required, enum: preference, place, order, general)
+    //   - content: string (required, max 1000 chars)
+    //   - category: string (optional, max 100 chars)
+    //   - timestamp: timestamp (required)
+    //
+    // Collection: users/{userId}/messages
+    // Document ID: messageId
+    // Fields:
+    //   - userId: string (required)
+    //   - role: string (required, enum: user, model)
+    //   - text: string (required, max 5000 chars)
+    //   - timestamp: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "escap.abdo@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidMemory(data) {
+      return data.keys().hasAll(['userId', 'type', 'content', 'timestamp']) &&
+             data.userId == request.auth.uid &&
+             data.type in ['preference', 'place', 'order', 'general'] &&
+             data.content is string && data.content.size() <= 2000 &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['userId', 'role', 'text', 'timestamp']) &&
+             data.userId == request.auth.uid &&
+             data.role in ['user', 'model'] &&
+             data.text is string && data.text.size() <= 5000 &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidAgentData(data) {
+      return data.keys().hasAll(['uid', 'email', 'lastUpdated']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.lastUpdated is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /Agent/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) && isValidAgentData(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.uid == resource.data.uid;
+      allow delete: if isAdmin();
+
+      match /memories/{memoryId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidMemory(request.resource.data);
+        allow update: if isOwner(userId) && isValidMemory(request.resource.data) &&
+                        request.resource.data.userId == resource.data.userId;
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /messages/{messageId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidMessage(request.resource.data);
+        allow update: if false; // Messages should be immutable
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
